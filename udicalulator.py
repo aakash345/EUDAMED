@@ -5,35 +5,29 @@ import openpyxl
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
-import time
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-email = 'hemant@narang.com'
-password = 'Welcome@2023'
-url = "https://webgate.ec.europa.eu/eudamed/secure#/actors/view/01FN5XFNVJ8M96HTNA777CB01K"
+
+input_gcp = '8907097'
+
+url = "https://www.gs1.org/services/check-character-calculator"
 op = webdriver.ChromeOptions()
-# op.add_argument('headless')
-op.add_experimental_option("detach", True)
+op.add_argument('headless')
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=op)
 
-driver.get(url)
-time.sleep(2)
-email_field = driver.find_element('name','username')
-email_field.send_keys(email)
-button = driver.find_element('name','whoamiSubmit')
-driver.execute_script("arguments[0].click();", button)
-# driver.find_elements_by_css_selector('button.btn-next')[0].click()
-pass_field = driver.find_element('name','password')
-pass_field.send_keys(password)
-button = driver.find_element('name','_submit')
-driver.execute_script("arguments[0].click();", button)
+xcel = openpyxl.load_workbook('code&key.xlsx')
+my_sheet_obj = xcel.active
+print(my_sheet_obj.max_row)
+for i in range(1,my_sheet_obj.max_row):
+    pcode = my_sheet_obj.cell(row = i+1, column = 1).value
+    driver.get(url)
+    name_field = driver.find_element('id','input_gcp')
+    name_field.send_keys(input_gcp)
+    name2_field = driver.find_element('id','input_model')
+    name2_field.send_keys(pcode)
 
-elem = WebDriverWait(driver, 30).until(EC.presence_of_element_located(('id', 'nav-menu-expandable-group-click-2')))
-myLink = driver.find_element('id', 'nav-menu-expandable-group-click-2')
-myLink.click()
+    button = driver.find_element('id','calculate_btn')
+    driver.execute_script("arguments[0].click();", button)
 
-elem = WebDriverWait(driver, 30).until(EC.presence_of_element_located(('id', "device-device-management-menu-register-new-UDI-DI"))) 
-
-myLink = driver.find_element('id', 'device-device-management-menu-register-new-UDI-DI')
-myLink.click()
-
+    result = driver.find_element('id','ccc-result-digits')
+    my_sheet_obj.cell(row = i+1, column = 2).value = result.text
+    print(result.text)
+xcel.save('code&key.xlsx')
