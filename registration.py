@@ -12,12 +12,29 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.common.action_chains import ActionChains
+import os
+from PyPDF2 import PdfMerger, PdfReader
+from io import BytesIO
+import json
 email = 'hemant@narang.com'
 cred = 'Welcome@2023'
 url = "https://webgate.ec.europa.eu/eudamed/secure#/actors/view/01FN5XFNVJ8M96HTNA777CB01K"
 op = webdriver.ChromeOptions()
 # op.add_argument('headless')
-op.add_experimental_option("detach", True)
+path = os.getcwd()
+settings = {
+       "recentDestinations": [{
+            "id": "Save as PDF",
+            "origin": "local",
+            "account": "",
+        }],
+        "selectedDestinationId": "Save as PDF",
+        "version": 2
+    }
+prefs = {'printing.print_preview_sticky_settings.appState': json.dumps(settings),
+         'savefile.default_directory': path,}
+op.add_experimental_option('prefs', prefs)
+op.add_argument('--kiosk-printing')
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=op)
 
 driver.get(url)
@@ -45,6 +62,38 @@ def register_new_page():
     regisLink = driver.find_element(By.ID, 'device-device-management-menu-register-new-UDI-DI')
     driver.execute_script("arguments[0].click();", regisLink)
 
+def print_submitted(pcode):
+    WebDriverWait(driver, 80).until(EC.presence_of_element_located((By.ID, 'nav-menu-expandable-group-click-3')))
+    navLink = driver.find_element(By.ID, 'nav-menu-expandable-group-click-3')
+    driver.execute_script("arguments[0].click();", navLink)
+    WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, "priv-device-menu-search-and-view-device"))) 
+    searchLink = driver.find_element(By.ID, 'priv-device-menu-search-and-view-device')
+    driver.execute_script("arguments[0].click();", searchLink)
+    dmodel = driver.find_element(By.ID, "deviceModel")
+    driver.execute_script("arguments[0].click();", dmodel)
+    dmodel.send_keys(pcode)
+    search_btn = driver.find_element(By.ID, "apply-filter")
+    driver.execute_script("arguments[0].click();", search_btn)
+    WebDriverWait(driver, 80).until(EC.presence_of_element_located((By.ID, 'device-device-management-basic-udi-di-value-column-label')))
+    time.sleep(5)
+    my_prod = driver.find_element(By.CSS_SELECTOR, "td:nth-child(3) > .truncate")
+    driver.execute_script("arguments[0].click();", my_prod)
+    WebDriverWait(driver, 80).until(EC.presence_of_element_located((By.ID, 'device-device-management-device-model')))
+    result = driver.find_element('id','device-device-management-device-model')
+    if(result.text == pcode):
+        print("found")
+        # Save the page as a PDF
+        filename = f'Eudamed - {pcode}.pdf'
+
+        driver.execute_script('window.print();')
+        time.sleep(1)
+        original_file_name = 'MDR-Eudamed - Search Devices and System or Procedure Packs.pdf' # Replace with the original file name
+        os.rename(os.path.join(prefs['savefile.default_directory'], original_file_name),
+                os.path.join(prefs['savefile.default_directory'], filename))
+    else:
+        print_submitted(pcode)
+
+
 #Page 1
 def page1(applicable_regul_val, issuing_entity_val, basic_udi_val):
     applicable_regul_list = ['MDR','IVDR']
@@ -56,10 +105,23 @@ def page1(applicable_regul_val, issuing_entity_val, basic_udi_val):
     #---->Issuing Entity
     issuing_entity = driver.find_element(By.CSS_SELECTOR, ".rw-dropdown-list-value")
     driver.execute_script("arguments[0].click();", issuing_entity)
-    driver.find_element(By.CSS_SELECTOR, f".rw-list-option:nth-child({issuing_entity_list.index(issuing_entity_val)+1})").click()
+    time.sleep(3)
+    dropdown = driver.find_element(By.ID, "basicUdi-issuingAgency_listbox")
+    # Find the second option by its text
+    option = dropdown.find_element(By.XPATH, f"//div[@class='rw-list-option'][contains(text(),'{issuing_entity_val}')]")
+    ActionChains(driver).move_to_element(dropdown).perform()
+    driver.execute_script("arguments[0].click();", dropdown)
+    WebDriverWait(driver, 90).until(EC.presence_of_element_located((By.XPATH, f"//div[@class='rw-list-option'][contains(text(),'{issuing_entity_val}')]")))
+    driver.execute_script("arguments[0].click();", option)
+    # opt = driver.find_element(By.CSS_SELECTOR, f".rw-list-option:nth-child({issuing_entity_list.index(issuing_entity_val)+1})")
+    # driver.execute_script("arguments[0].click();", opt)
+
     #---->Basic UDI-DI Code
-    driver.find_element(By.ID, "basicUdi-code").click()
-    driver.find_element(By.ID, "basicUdi-code").send_keys(basic_udi_val)  #Calulator Generated
+    basic_udi = driver.find_element(By.ID, "basicUdi-code")
+    driver.execute_script("arguments[0].click();", basic_udi)
+    basic_udi.clear()
+    time.sleep(1)
+    basic_udi.send_keys(basic_udi_val)  #Calulator Generated
     #---->System or Procedure
     time.sleep(1)
     systemdev_btn = driver.find_element(By.CSS_SELECTOR, "div:nth-child(1) > .radio-button-group > .radio-button-item:nth-child(1) span")
@@ -216,7 +278,7 @@ def page3(issuing_entity_val, emdn_val, trade_name_val, pcode, pname, udi_with_0
         driver.execute_script("arguments[0].click();", page3_btn)
         return new_udi
     except:
-        pass
+        return udi_with_0
 
 #UPDATE 3 - Working till here (02/03 1:26AM)---------------------------------------------------
 
@@ -289,6 +351,13 @@ def page5():
     pg5_btn = driver.find_element(By.ID, "general-button-save-and-next")
     driver.execute_script("arguments[0].click();", pg5_btn)
 
+def page6():
+    pg6_btn = driver.find_element(By.ID, "general-button-submit")
+    driver.execute_script("arguments[0].click();", pg6_btn)
+    time.sleep(3)
+    WebDriverWait(driver, 50).until(EC.presence_of_element_located((By.ID,"general-button-submit-my-request")))
+    final_btn = driver.find_element(By.ID, "general-button-submit-my-request")
+    driver.execute_script("arguments[0].click();", final_btn)
 # #dynamic variables
 # pcode = 349.070
 # pname = "Lane Bone Holding forceps without Ratchet, 300mm"
@@ -309,44 +378,72 @@ def page5():
 # sterilisation_val = "No"
 # labelled_val = "No"
 # latex_val = "No"
-df = pd.read_excel('data2.xlsx')
+# df = pd.read_excel('data2.xlsx')
+xcel = openpyxl.load_workbook("data2.xlsx")
+sh = xcel.active
 login()
 time.sleep(3)
 register_new_page()
 time.sleep(3)
-for ind in df.index:
-    pcode = df['product_code'][ind]
-    pname = df['product_name'][ind]
-    udi_without_0 = str(df['UDI-DI'][ind])
+# print_submitted("340.010")
+count=0
+for i in range(1, sh.max_row):
+    pcode = sh.cell(row = i+1, column = 1).value
+    pname = sh.cell(row = i+1, column = 2).value
+    udi_without_0 = sh.cell(row = i+1, column = 3).value
     udi_with_0 = "0"+udi_without_0+"0"
-    basic_udi_val = df['Basic-UDI-DI'][ind]   #calculator generated
-    emdn_val = df['EMDN'][ind]
-    applicable_regul_val = df['applicable_regulation'][ind]
-    issuing_entity_val = df['Issuing_Entity'][ind]
-    risk_class_val = df['Risk_class'][ind]
-    implantable_val = df['Implantable'][ind]
-    measuring_val = df['Measuring'][ind]
-    reusable_val = df['Reusable'][ind]
-    active_val = df['Active'][ind]
-    medicinal_val = df['Medicinal'][ind]
-    trade_name_val = df['Trade Name'][ind]
-    single_use_val = df['Single_use'][ind]
-    sterilisation_val = df['sterilisation'][ind]
-    labelled_val = df['labelled'][ind]
-    latex_val = df['latex'][ind]
+    basic_udi_val = sh.cell(row = i+1, column = 4).value   #calculator generated
+    emdn_val = sh.cell(row = i+1, column = 6).value
+    applicable_regul_val = sh.cell(row = i+1, column = 7).value
+    issuing_entity_val = sh.cell(row = i+1, column = 8).value
+    risk_class_val = sh.cell(row = i+1, column = 9).value
+    implantable_val = sh.cell(row = i+1, column = 10).value
+    measuring_val = sh.cell(row = i+1, column = 11).value
+    reusable_val = sh.cell(row = i+1, column = 12).value
+    active_val = sh.cell(row = i+1, column = 13).value
+    medicinal_val = sh.cell(row = i+1, column = 14).value
+    trade_name_val = sh.cell(row = i+1, column = 15).value
+    single_use_val = sh.cell(row = i+1, column = 16).value
+    sterilisation_val = sh.cell(row = i+1, column = 17).value
+    labelled_val = sh.cell(row = i+1, column = 18).value
+    latex_val = sh.cell(row = i+1, column = 19).value
+    status_val = sh.cell(row = i+1, column = 20).value
     try:
-        page1(applicable_regul_val, issuing_entity_val, basic_udi_val)
-        page2(risk_class_val, implantable_val, measuring_val, reusable_val, active_val, medicinal_val, pcode, pname)
-        new_udi = page3(issuing_entity_val, emdn_val, trade_name_val, pcode, pname, udi_with_0)
-        df['Certificate-UDI-DI'][ind] = new_udi
-        page4(single_use_val, sterilisation_val, labelled_val, latex_val)
-        page5()
-        df['Status'][ind] = 'Success'
-        register_new_page()
-        register_new_page()
-        register_new_page()
-        break
-    except:
-        df['Status'][ind] = 'Error'
+        if status_val!='Success':
+            page1(applicable_regul_val, issuing_entity_val, basic_udi_val)
+            print("page 1 completed")
 
-df.to_excel('output.xlsx')
+            page2(risk_class_val, implantable_val, measuring_val, reusable_val, active_val, medicinal_val, pcode, pname)
+            print("page 2 completed")
+
+            new_udi = page3(issuing_entity_val, emdn_val, trade_name_val, pcode, pname, udi_with_0)
+            sh.cell(row = i+1, column = 5).value = new_udi
+            print("page 3 completed")
+            
+            page4(single_use_val, sterilisation_val, labelled_val, latex_val)
+            print("page 4 completed")
+            
+            page5()
+            print("page 5 completed")
+            
+            page6()
+            print("page 6 completed")
+            sh.cell(row = i+1, column = 20).value = 'Success'
+            time.sleep(3)
+            print_submitted(pcode)
+            register_new_page()
+            count+=1
+            if(count==2):
+                break
+        else:
+            continue
+    except:
+        sh.cell(row = i+1, column = 20).value = 'Error'
+        time.sleep(3)
+        register_new_page()
+    xcel.save('data2.xlsx')
+    time.sleep(2)
+xcel.save('data2.xlsx')
+
+
+# device-registration-link-register-new-basic-udi-di
