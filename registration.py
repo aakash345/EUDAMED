@@ -386,7 +386,7 @@ time.sleep(3)
 register_new_page()
 time.sleep(3)
 # print_submitted("340.010")
-count=0
+
 for i in range(1, sh.max_row):
     pcode = sh.cell(row = i+1, column = 1).value
     pname = sh.cell(row = i+1, column = 2).value
@@ -432,9 +432,7 @@ for i in range(1, sh.max_row):
             time.sleep(3)
             print_submitted(pcode)
             register_new_page()
-            count+=1
-            if(count==2):
-                break
+
         else:
             continue
     except:
