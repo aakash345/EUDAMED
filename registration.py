@@ -1,6 +1,4 @@
 from selenium import webdriver
-import pandas as pd
-import numpy as np
 import openpyxl
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -9,12 +7,8 @@ import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import Select
-from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.common.action_chains import ActionChains
 import os
-from PyPDF2 import PdfMerger, PdfReader
-from io import BytesIO
 import json
 email = 'hemant@narang.com'
 cred = 'Welcome@2023'
@@ -61,8 +55,10 @@ def register_new_page():
     WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, "device-device-management-menu-register-new-UDI-DI"))) 
     regisLink = driver.find_element(By.ID, 'device-device-management-menu-register-new-UDI-DI')
     driver.execute_script("arguments[0].click();", regisLink)
+    time.sleep(3)
 
 def print_submitted(pcode):
+    time.sleep(2)
     WebDriverWait(driver, 80).until(EC.presence_of_element_located((By.ID, 'nav-menu-expandable-group-click-3')))
     navLink = driver.find_element(By.ID, 'nav-menu-expandable-group-click-3')
     driver.execute_script("arguments[0].click();", navLink)
@@ -98,6 +94,7 @@ def print_submitted(pcode):
 def page1(applicable_regul_val, issuing_entity_val, basic_udi_val):
     applicable_regul_list = ['MDR','IVDR']
     issuing_entity_list = ['GS1','HIBCC','ICCBA','IFA']
+    time.sleep(3)
     WebDriverWait(driver, 80).until(EC.presence_of_element_located(('id', "basicUdi-code"))) 
     #--->Applicable Regulation
     radiobtn = driver.find_element(By.CSS_SELECTOR, f".radio-button-item:nth-child({applicable_regul_list.index(applicable_regul_val)+1}) span")
@@ -129,6 +126,7 @@ def page1(applicable_regul_val, issuing_entity_val, basic_udi_val):
     #--->Save & Next
     savebtn = driver.find_element(By.CSS_SELECTOR, ".glyphicon-chevron-right")
     driver.execute_script("arguments[0].click();", savebtn)
+    time.sleep(3)
 
 #Page 2
 def page2(risk_class_val, implantable_val, measuring_val, reusable_val, active_val, medicinal_val, pcode, pname):
@@ -172,6 +170,7 @@ def page2(risk_class_val, implantable_val, measuring_val, reusable_val, active_v
     driver.find_element(By.ID, "deviceName").send_keys(pname)
     save_pg2_btn = driver.find_element(By.ID, "general-button-save-and-next")
     driver.execute_script("arguments[0].click();", save_pg2_btn)
+    time.sleep(3)
 #DONE - SUNDAY
 
 #page3
@@ -322,6 +321,7 @@ def page4(single_use_val, sterilisation_val, labelled_val, latex_val):
 
     pg4_btn = driver.find_element(By.ID, "general-button-save-and-next")
     driver.execute_script("arguments[0].click();", pg4_btn)
+    time.sleep(3)
 
 #page 5
 def page5():
@@ -350,6 +350,7 @@ def page5():
     driver.execute_script("arguments[0].click();", langopt1)
     pg5_btn = driver.find_element(By.ID, "general-button-save-and-next")
     driver.execute_script("arguments[0].click();", pg5_btn)
+    time.sleep(3)
 
 def page6():
     pg6_btn = driver.find_element(By.ID, "general-button-submit")
@@ -358,27 +359,8 @@ def page6():
     WebDriverWait(driver, 50).until(EC.presence_of_element_located((By.ID,"general-button-submit-my-request")))
     final_btn = driver.find_element(By.ID, "general-button-submit-my-request")
     driver.execute_script("arguments[0].click();", final_btn)
-# #dynamic variables
-# pcode = 349.070
-# pname = "Lane Bone Holding forceps without Ratchet, 300mm"
-# udi_without_0 = "890709711279"
-# udi_with_0 = "0"+udi_without_0+"0"
-# basic_udi_val = "8907097349.0702V"   #calculator generated
-# emdn_val = "L091303"
-# applicable_regul_val = "MDR"
-# issuing_entity_val = "GS1"
-# risk_class_val = "Class I"
-# implantable_val = "No"
-# measuring_val = "No"
-# reusable_val = "Yes"
-# active_val = "No"
-# medicinal_val = "No"
-# trade_name_val = "NET"
-# single_use_val = "No"
-# sterilisation_val = "No"
-# labelled_val = "No"
-# latex_val = "No"
-# df = pd.read_excel('data2.xlsx')
+    time.sleep(5)
+
 xcel = openpyxl.load_workbook("data2.xlsx")
 sh = xcel.active
 login()
@@ -439,6 +421,7 @@ for i in range(1, sh.max_row):
         sh.cell(row = i+1, column = 20).value = 'Error'
         time.sleep(3)
         register_new_page()
+        time.sleep(3)
     xcel.save('data2.xlsx')
     time.sleep(2)
 xcel.save('data2.xlsx')
